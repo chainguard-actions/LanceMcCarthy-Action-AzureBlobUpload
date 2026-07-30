@@ -1,0 +1,34 @@
+name: Test invalid auth_type causes failure
+on:
+  workflow_dispatch:
+jobs:
+  test:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd # v6.0.2
+
+      - name: Create a source folder with a file
+        run: |
+          mkdir -p /tmp/upload-source
+          echo "test content" > /tmp/upload-source/test.txt
+
+      - name: Run action with invalid auth_type
+        id: action
+        continue-on-error: true
+        uses: .
+        with:
+          auth_type: "invalid_auth_mode"
+          container_name: "test-container"
+          source_folder: "/tmp/upload-source"
+
+      - name: Assert action failed due to invalid auth_type
+        env:
+          OUTCOME: ${{ steps.action.outcome }}
+        run: |
+          echo "action outcome: $OUTCOME"
+          if [ "$OUTCOME" = "failure" ]; then
+            echo "PASS: action correctly failed with invalid auth_type"
+          else
+            echo "FAIL: expected action to fail with invalid auth_type, but got outcome: $OUTCOME"
+            exit 1
+          fi

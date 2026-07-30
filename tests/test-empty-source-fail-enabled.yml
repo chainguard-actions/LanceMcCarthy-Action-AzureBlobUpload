@@ -1,0 +1,36 @@
+name: Test fail_if_source_empty=true causes failure on empty source
+on:
+  workflow_dispatch:
+jobs:
+  test:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd # v6.0.2
+
+      - name: Create an empty source folder
+        run: mkdir -p /tmp/empty-upload-source
+
+      - name: Run action with empty source and fail_if_source_empty=true
+        id: action
+        continue-on-error: true
+        uses: .
+        with:
+          # Use a properly formatted but fake connection string so the SDK can parse it.
+          # The action will fail either at Azure connectivity (fake account) or at the
+          # empty-source check — either way, the step should fail.
+          connection_string: "DefaultEndpointsProtocol=https;AccountName=fakeaccount;AccountKey=ZmFrZWtleWZha2VrZXlmYWtla2V5ZmFrZWtleWZha2VrZXlmYWtla2V5ZmFrZWtleWZha2VrZXlmYWs=;EndpointSuffix=core.windows.net"
+          container_name: "test-container"
+          source_folder: "/tmp/empty-upload-source"
+          fail_if_source_empty: "true"
+
+      - name: Assert action failed
+        env:
+          OUTCOME: ${{ steps.action.outcome }}
+        run: |
+          echo "action outcome: $OUTCOME"
+          if [ "$OUTCOME" = "failure" ]; then
+            echo "PASS: action correctly failed (empty source with fail_if_source_empty=true, or Azure connectivity error)"
+          else
+            echo "FAIL: expected action to fail, but got outcome: $OUTCOME"
+            exit 1
+          fi

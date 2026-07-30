@@ -1,0 +1,35 @@
+name: Test missing service principal fields causes failure
+on:
+  workflow_dispatch:
+jobs:
+  test:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd # v6.0.2
+
+      - name: Create a source folder with a file
+        run: |
+          mkdir -p /tmp/upload-source
+          echo "test content" > /tmp/upload-source/test.txt
+
+      - name: Run action with auth_type=service_principal but missing required fields
+        id: action
+        continue-on-error: true
+        uses: .
+        with:
+          auth_type: "service_principal"
+          # tenant_id, client_id, client_secret, storage_account all omitted (empty)
+          container_name: "test-container"
+          source_folder: "/tmp/upload-source"
+
+      - name: Assert action failed due to missing service principal fields
+        env:
+          OUTCOME: ${{ steps.action.outcome }}
+        run: |
+          echo "action outcome: $OUTCOME"
+          if [ "$OUTCOME" = "failure" ]; then
+            echo "PASS: action correctly failed when service principal fields are missing"
+          else
+            echo "FAIL: expected action to fail with missing service principal fields, but got outcome: $OUTCOME"
+            exit 1
+          fi

@@ -1,0 +1,34 @@
+name: Test missing container_name causes failure
+on:
+  workflow_dispatch:
+jobs:
+  test:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd # v6.0.2
+
+      - name: Create a source folder with a file
+        run: |
+          mkdir -p /tmp/upload-source
+          echo "test content" > /tmp/upload-source/test.txt
+
+      - name: Run action with empty container_name
+        id: action
+        continue-on-error: true
+        uses: .
+        with:
+          connection_string: "DefaultEndpointsProtocol=https;AccountName=fakeaccount;AccountKey=ZmFrZWtleWZha2VrZXlmYWtla2V5ZmFrZWtleWZha2VrZXlmYWtla2V5ZmFrZWtleWZha2VrZXlmYWs=;EndpointSuffix=core.windows.net"
+          container_name: ""
+          source_folder: "/tmp/upload-source"
+
+      - name: Assert action failed due to empty container_name
+        env:
+          OUTCOME: ${{ steps.action.outcome }}
+        run: |
+          echo "action outcome: $OUTCOME"
+          if [ "$OUTCOME" = "failure" ]; then
+            echo "PASS: action correctly failed when container_name is empty"
+          else
+            echo "FAIL: expected action to fail with empty container_name, but got outcome: $OUTCOME"
+            exit 1
+          fi
