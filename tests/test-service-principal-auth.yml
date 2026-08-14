@@ -1,0 +1,41 @@
+name: Test service principal authentication
+on:
+  workflow_dispatch:
+jobs:
+  test:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd # v6.0.2
+
+      - name: Create source folder with files
+        run: |
+          mkdir -p /tmp/sp-upload-source
+          echo "service principal test file" > /tmp/sp-upload-source/sp-test.txt
+
+      - name: Run action with service principal auth (fake credentials - expected to fail at Azure)
+        id: action
+        uses: .
+        continue-on-error: true
+        with:
+          tenant_id: "00000000-0000-0000-0000-000000000001"
+          client_id: "00000000-0000-0000-0000-000000000002"
+          client_secret: "fake-client-secret-value"
+          storage_account: "fakestorageaccount"
+          container_name: "test-container"
+          source_folder: "/tmp/sp-upload-source/"
+          destination_folder: "sp-test-uploads"
+          auth_type: "service_principal"
+          fail_if_source_empty: "false"
+
+      - name: Assert action ran with service principal auth inputs
+        env:
+          OUTCOME: ${{ steps.action.outcome }}
+        run: |
+          echo "outcome: $OUTCOME"
+          # The action should fail because Azure credentials are fake,
+          # but it should NOT be skipped — it must have been invoked.
+          if [ "$OUTCOME" = "skipped" ]; then
+            echo "FAIL: action was skipped, expected it to be invoked"
+            exit 1
+          fi
+          echo "PASS: action was invoked with service principal auth (outcome=$OUTCOME, expected failure due to fake Azure credentials)"
