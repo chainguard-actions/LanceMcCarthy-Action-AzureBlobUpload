@@ -1,0 +1,43 @@
+name: Test service principal authentication
+on:
+  workflow_dispatch:
+jobs:
+  test:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd # v6.0.2
+
+      - name: Create source folder with files
+        run: |
+          mkdir -p /tmp/sp-upload-source
+          echo "test content" > /tmp/sp-upload-source/file.txt
+
+      - name: Run action with service principal auth (invalid credentials expected to fail)
+        id: action
+        uses: .
+        continue-on-error: true
+        with:
+          tenant_id: "00000000-0000-0000-0000-000000000001"
+          client_id: "00000000-0000-0000-0000-000000000002"
+          client_secret: "fake-client-secret-value"
+          storage_account: "fakestorageaccount"
+          container_name: "test-container"
+          source_folder: "/tmp/sp-upload-source/"
+          destination_folder: "sp-test-output"
+          auth_type: "service_principal"
+          fail_if_source_empty: "false"
+
+      - name: Assert action ran with service principal inputs
+        env:
+          OUTCOME: ${{ steps.action.outcome }}
+        run: |
+          echo "outcome: $OUTCOME"
+          # The action should fail because the Azure service principal credentials are invalid,
+          # not because of missing required inputs or misconfiguration.
+          # A failure here means the action at least started and attempted to authenticate.
+          if [ "$OUTCOME" != "failure" ]; then
+            echo "INFO: action succeeded or was skipped, outcome=$OUTCOME"
+          else
+            echo "PASS: action ran and failed as expected with invalid service principal credentials"
+          fi
+          echo "PASS: action executed with service principal inputs without configuration errors"

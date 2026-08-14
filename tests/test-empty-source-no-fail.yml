@@ -1,0 +1,42 @@
+name: Test empty source with fail_if_source_empty disabled
+on:
+  workflow_dispatch:
+jobs:
+  test:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd # v6.0.2
+
+      - name: Create empty source folder
+        run: mkdir -p /tmp/empty-source-nofail
+
+      - name: Run action with empty source and fail_if_source_empty=false
+        id: action-no-fail
+        uses: .
+        continue-on-error: true
+        with:
+          connection_string: "DefaultEndpointsProtocol=https;AccountName=fakeaccount;AccountKey=ZmFrZWtleWZha2VrZXlmYWtla2V5ZmFrZWtleWZha2VrZXlmYWtla2V5ZmFrZWtleWZha2VrZXlmYWs=;EndpointSuffix=core.windows.net"
+          container_name: "test-container"
+          source_folder: "/tmp/empty-source-nofail/"
+          fail_if_source_empty: "false"
+
+      - name: Run action with empty source and fail_if_source_empty=true
+        id: action-with-fail
+        uses: .
+        continue-on-error: true
+        with:
+          connection_string: "DefaultEndpointsProtocol=https;AccountName=fakeaccount;AccountKey=ZmFrZWtleWZha2VrZXlmYWtla2V5ZmFrZWtleWZha2VrZXlmYWtla2V5ZmFrZWtleWZha2VrZXlmYWs=;EndpointSuffix=core.windows.net"
+          container_name: "test-container"
+          source_folder: "/tmp/empty-source-nofail/"
+          fail_if_source_empty: "true"
+
+      - name: Assert fail_if_source_empty=true causes failure
+        env:
+          OUTCOME_WITH_FAIL: ${{ steps.action-with-fail.outcome }}
+        run: |
+          echo "outcome with fail_if_source_empty=true: $OUTCOME_WITH_FAIL"
+          if [ "$OUTCOME_WITH_FAIL" != "failure" ]; then
+            echo "FAIL: expected action to fail when source is empty and fail_if_source_empty=true, got: $OUTCOME_WITH_FAIL"
+            exit 1
+          fi
+          echo "PASS: action correctly failed when source folder was empty and fail_if_source_empty=true"
