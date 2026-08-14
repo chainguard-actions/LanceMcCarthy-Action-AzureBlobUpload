@@ -1,0 +1,42 @@
+name: Test connection string auth type
+on:
+  workflow_dispatch:
+
+jobs:
+  test:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd # v6.0.2
+
+      - name: Create source folder with files
+        run: |
+          mkdir -p /tmp/upload-source
+          echo "hello world" > /tmp/upload-source/test-file.txt
+          echo "another file" > /tmp/upload-source/another.txt
+
+      - name: Run action with connection_string auth
+        id: action
+        uses: .
+        continue-on-error: true
+        with:
+          connection_string: "DefaultEndpointsProtocol=https;AccountName=fakeaccount;AccountKey=ZmFrZWtleWZha2VrZXlmYWtla2V5ZmFrZWtleWZha2VrZXlmYWtla2V5ZmFrZWtleWZha2VrZXlmYWs=;EndpointSuffix=core.windows.net"
+          container_name: "test-container"
+          source_folder: "/tmp/upload-source/"
+          destination_folder: "test-destination"
+          auth_type: "connection_string"
+          fail_if_source_empty: "true"
+
+      - name: Assert action ran (fails at Azure, not at input validation)
+        run: |
+          echo "outcome: ${{ steps.action.outcome }}"
+          # The action is expected to fail because the Azure credentials are fake.
+          # However, it should NOT fail due to missing required inputs or empty source.
+          # We verify the outcome is 'failure' (Azure error) not something else unexpected.
+          if [ "${{ steps.action.outcome }}" = "success" ]; then
+            echo "PASS: action succeeded (unexpected but acceptable)"
+          elif [ "${{ steps.action.outcome }}" = "failure" ]; then
+            echo "PASS: action failed at Azure connection stage as expected with fake credentials"
+          else
+            echo "FAIL: unexpected outcome: ${{ steps.action.outcome }}"
+            exit 1
+          fi

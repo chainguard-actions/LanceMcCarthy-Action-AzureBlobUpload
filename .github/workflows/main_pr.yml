@@ -1,0 +1,50 @@
+name: 'Pull Request Validation'
+on:
+  pull_request:
+    branches:
+      - main
+    paths:
+      - 'src/**/*'
+      - 'package.json'
+      - 'package-lock.json'
+
+permissions:
+  contents: read
+
+jobs:
+#--------------------------------------------------------------------------------------#
+# Ensure the package builds and all tests pass.
+#--------------------------------------------------------------------------------------#
+  Package_RunTests:
+    name: 'Build Package and Run Tests'
+    runs-on: windows-latest
+    steps:
+      - uses: actions/checkout@34e114876b0b11c390a56381ad16ebd13914f8d5 # v4
+
+      - uses: actions/setup-node@49933ea5288caeca8642d1e84afbd3f7d6820020 # v4
+        with:
+          node-version: '22'
+          
+      - name: "Run scripts"
+        run: npm run all
+        env:
+          NODE_OPTIONS: "--max_old_space_size=4096"
+
+#--------------------------------------------------------------------------------------#
+# Single test for uploading a large number of files to test performance or problems.
+#--------------------------------------------------------------------------------------#
+  LargeFileCount_Test:
+    name: 'Publish wwwroot using Windows'
+    runs-on: windows-latest
+    needs: Package_RunTests
+    steps:
+      - uses: actions/checkout@34e114876b0b11c390a56381ad16ebd13914f8d5 # v4
+
+      - uses: ./
+        name: Upload wwwroot to /LargeFileCountTest/Windows
+        with:
+          connection_string: ${{secrets.AzureBlobConnectionString}}
+          container_name: ci-cd
+          destination_folder: LargeFileCountTest/Windows
+          source_folder: TestFiles\\wwwroot\\
+          clean_destination_folder: true
