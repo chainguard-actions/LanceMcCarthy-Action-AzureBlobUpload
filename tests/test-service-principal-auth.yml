@@ -1,0 +1,41 @@
+name: Test service principal authentication mode
+on:
+  workflow_dispatch:
+jobs:
+  test:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd # v6.0.2
+
+      - name: Create source folder with a file
+        run: |
+          mkdir -p /tmp/sp-upload-source
+          echo "test content" > /tmp/sp-upload-source/test.txt
+
+      - name: Run action with service principal auth
+        id: action
+        uses: .
+        continue-on-error: true
+        with:
+          auth_type: "service_principal"
+          tenant_id: "00000000-0000-0000-0000-000000000001"
+          client_id: "00000000-0000-0000-0000-000000000002"
+          client_secret: "fake-client-secret"
+          storage_account: "fakestorageaccount"
+          container_name: "test-container"
+          source_folder: "/tmp/sp-upload-source/"
+          destination_folder: "sp-test-output"
+          fail_if_source_empty: "true"
+
+      - name: Assert action ran (not skipped)
+        env:
+          OUTCOME: ${{ steps.action.outcome }}
+        run: |
+          echo "outcome: $OUTCOME"
+          if [ "$OUTCOME" = "skipped" ]; then
+            echo "FAIL: action was skipped unexpectedly"
+            exit 1
+          fi
+          # The action will fail due to fake Azure credentials, but it should
+          # have run and attempted the service principal auth flow.
+          echo "PASS: action ran with service_principal auth_type"

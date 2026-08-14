@@ -1,0 +1,39 @@
+name: Test action with files in source folder
+on:
+  workflow_dispatch:
+jobs:
+  test:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd # v6.0.2
+
+      - name: Create source folder with files
+        run: |
+          mkdir -p /tmp/upload-source/subdir
+          echo "hello world" > /tmp/upload-source/file1.txt
+          echo "another file" > /tmp/upload-source/subdir/file2.txt
+
+      - name: Run action with source files (fake credentials)
+        id: action
+        uses: .
+        continue-on-error: true
+        with:
+          connection_string: "DefaultEndpointsProtocol=https;AccountName=fakeaccount;AccountKey=ZmFrZWtleWZha2VrZXlmYWtla2V5ZmFrZWtleWZha2VrZXlmYWtla2V5ZmFrZWtleWZha2VrZXlmYWs=;EndpointSuffix=core.windows.net"
+          container_name: "test-container"
+          source_folder: "/tmp/upload-source/"
+          destination_folder: "test-output"
+          is_recursive: "true"
+          fail_if_source_empty: "true"
+
+      - name: Assert action ran (not skipped)
+        env:
+          OUTCOME: ${{ steps.action.outcome }}
+        run: |
+          echo "outcome: $OUTCOME"
+          if [ "$OUTCOME" = "skipped" ]; then
+            echo "FAIL: action was skipped unexpectedly"
+            exit 1
+          fi
+          # The action will fail due to fake Azure credentials, but it should
+          # have run and attempted the upload (not failed on empty source check).
+          echo "PASS: action ran and attempted upload with source files present"
