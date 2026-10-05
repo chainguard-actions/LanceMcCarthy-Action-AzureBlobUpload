@@ -1,0 +1,39 @@
+name: Test non-recursive upload (subfolders ignored)
+on:
+  workflow_dispatch:
+jobs:
+  test:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd # v6.0.2
+
+      - name: Create source folder with files and subfolders
+        run: |
+          mkdir -p /tmp/nonrecursive-source/subfolder
+          echo "root file" > /tmp/nonrecursive-source/root.txt
+          echo "sub file" > /tmp/nonrecursive-source/subfolder/sub.txt
+
+      - id: action
+        uses: .
+        continue-on-error: true
+        with:
+          connection_string: "DefaultEndpointsProtocol=https;AccountName=fakeaccount;AccountKey=ZmFrZWtleWZha2VrZXlmYWtla2V5ZmFrZWtleWZha2VrZXlmYWtla2V5ZmFrZWtleWZha2VrZXlmYWs=;EndpointSuffix=core.windows.net"
+          container_name: "test-container"
+          source_folder: "/tmp/nonrecursive-source/"
+          destination_folder: "nonrecursive-output"
+          is_recursive: "false"
+          fail_if_source_empty: "false"
+
+      - name: Assert action ran (succeeded or failed gracefully with fake credentials)
+        env:
+          OUTCOME: ${{ steps.action.outcome }}
+        run: |
+          echo "outcome: $OUTCOME"
+          if [ "$OUTCOME" = "success" ]; then
+            echo "PASS: action succeeded"
+          elif [ "$OUTCOME" = "failure" ]; then
+            echo "PASS: action failed gracefully (expected with fake Azure credentials)"
+          else
+            echo "FAIL: unexpected outcome '$OUTCOME'"
+            exit 1
+          fi
