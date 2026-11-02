@@ -1,0 +1,26 @@
+name: Test non-recursive folder upload without destination folder
+on:
+  workflow_dispatch:
+jobs:
+  test:
+    runs-on: ubuntu-latest
+    env:
+      AZ_CS: "DefaultEndpointsProtocol=http;AccountName=devstoreaccount1;AccountKey=Eby8vdM02xNOcqFlqUwJPLlmEtlCDXJ1OUzFT50uSRZ6IFsuFq2UVErCz4I6tq/K1SZFPTOtr/KBHBeksoGMGw==;BlobEndpoint=http://127.0.0.1:10000/devstoreaccount1;"
+    steps:
+      - uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd # v6.0.2
+      - name: Start Azurite blob emulator
+        run: bash tests/fixtures/start-azurite.sh
+      - id: action
+        uses: .
+        with:
+          connection_string: ${{ env.AZ_CS }}
+          container_name: flat-test
+          source_folder: tests/fixtures/upload/
+          is_recursive: "false"
+      - name: Assert only top-level files uploaded at container root
+        run: |
+          LIST="$(NODE_PATH=/tmp/azt/node_modules node tests/fixtures/list-blobs.cjs flat-test)"
+          echo "blobs:"; echo "$LIST"
+          echo "$LIST" | grep -qP '^a\.txt\t' || { echo "FAIL: a.txt missing"; exit 1; }
+          if echo "$LIST" | grep -q 'b\.json'; then echo "FAIL: subfolder file should not be uploaded"; exit 1; fi
+          echo "PASS"

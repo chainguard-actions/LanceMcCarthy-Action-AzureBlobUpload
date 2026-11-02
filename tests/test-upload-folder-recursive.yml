@@ -1,0 +1,28 @@
+name: Test recursive folder upload with destination folder
+on:
+  workflow_dispatch:
+jobs:
+  test:
+    runs-on: ubuntu-latest
+    env:
+      AZ_CS: "DefaultEndpointsProtocol=http;AccountName=devstoreaccount1;AccountKey=Eby8vdM02xNOcqFlqUwJPLlmEtlCDXJ1OUzFT50uSRZ6IFsuFq2UVErCz4I6tq/K1SZFPTOtr/KBHBeksoGMGw==;BlobEndpoint=http://127.0.0.1:10000/devstoreaccount1;"
+    steps:
+      - uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd # v6.0.2
+      - name: Start Azurite blob emulator
+        run: bash tests/fixtures/start-azurite.sh
+      - id: action
+        uses: .
+        with:
+          connection_string: ${{ env.AZ_CS }}
+          container_name: recursive-test
+          source_folder: tests/fixtures/upload/
+          destination_folder: site
+      - name: Assert all files uploaded under destination folder
+        run: |
+          LIST="$(NODE_PATH=/tmp/azt/node_modules node tests/fixtures/list-blobs.cjs recursive-test)"
+          echo "blobs:"; echo "$LIST"
+          echo "$LIST" | grep -qP '^site/a\.txt\ttext/plain' || { echo "FAIL: site/a.txt (text/plain) missing"; exit 1; }
+          echo "$LIST" | grep -qP '^site/sub/b\.json\tapplication/json' || { echo "FAIL: site/sub/b.json (application/json) missing"; exit 1; }
+          COUNT="$(echo "$LIST" | grep -c . || true)"
+          if [ "$COUNT" != "2" ]; then echo "FAIL: expected 2 blobs, got $COUNT"; exit 1; fi
+          echo "PASS"

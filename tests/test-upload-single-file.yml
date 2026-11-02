@@ -1,0 +1,28 @@
+name: Test single file upload mode
+on:
+  workflow_dispatch:
+jobs:
+  test:
+    runs-on: ubuntu-latest
+    env:
+      AZ_CS: "DefaultEndpointsProtocol=http;AccountName=devstoreaccount1;AccountKey=Eby8vdM02xNOcqFlqUwJPLlmEtlCDXJ1OUzFT50uSRZ6IFsuFq2UVErCz4I6tq/K1SZFPTOtr/KBHBeksoGMGw==;BlobEndpoint=http://127.0.0.1:10000/devstoreaccount1;"
+    steps:
+      - uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd # v6.0.2
+      - name: Start Azurite blob emulator
+        run: bash tests/fixtures/start-azurite.sh
+      - id: action
+        uses: .
+        with:
+          connection_string: ${{ env.AZ_CS }}
+          auth_type: connection_string
+          container_name: single-test
+          source_folder: tests/fixtures/upload/sub/b.json
+          destination_folder: docs/json
+      - name: Assert single file uploaded to destination folder
+        run: |
+          LIST="$(NODE_PATH=/tmp/azt/node_modules node tests/fixtures/list-blobs.cjs single-test)"
+          echo "blobs:"; echo "$LIST"
+          echo "$LIST" | grep -qP '^docs/json/b\.json\tapplication/json' || { echo "FAIL: docs/json/b.json missing"; exit 1; }
+          COUNT="$(echo "$LIST" | grep -c . || true)"
+          if [ "$COUNT" != "1" ]; then echo "FAIL: expected 1 blob, got $COUNT"; exit 1; fi
+          echo "PASS"

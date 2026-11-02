@@ -1,0 +1,30 @@
+name: Test empty source folder without fail_if_source_empty succeeds
+on:
+  workflow_dispatch:
+jobs:
+  test:
+    runs-on: ubuntu-latest
+    env:
+      AZ_CS: "DefaultEndpointsProtocol=http;AccountName=devstoreaccount1;AccountKey=Eby8vdM02xNOcqFlqUwJPLlmEtlCDXJ1OUzFT50uSRZ6IFsuFq2UVErCz4I6tq/K1SZFPTOtr/KBHBeksoGMGw==;BlobEndpoint=http://127.0.0.1:10000/devstoreaccount1;"
+    steps:
+      - uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd # v6.0.2
+      - name: Start Azurite blob emulator
+        run: bash tests/fixtures/start-azurite.sh
+      - name: Create empty source folder
+        run: rm -rf empty-src && mkdir -p empty-src
+      - id: action
+        uses: .
+        with:
+          connection_string: ${{ env.AZ_CS }}
+          container_name: empty-ok-test
+          source_folder: empty-src/
+      - name: Assert container created and empty
+        run: |
+          NODE_PATH=/tmp/azt/node_modules node -e '
+            const {BlobServiceClient}=require("@azure/storage-blob");
+            BlobServiceClient.fromConnectionString(process.env.AZ_CS).getContainerClient("empty-ok-test").exists()
+              .then(e=>{console.log("exists:",e); process.exit(e?0:1)}).catch(e=>{console.error(e);process.exit(1)});
+          ' || { echo "FAIL: container was not created"; exit 1; }
+          LIST="$(NODE_PATH=/tmp/azt/node_modules node tests/fixtures/list-blobs.cjs empty-ok-test)"
+          if [ -n "$LIST" ]; then echo "FAIL: expected no blobs, got $LIST"; exit 1; fi
+          echo "PASS"
